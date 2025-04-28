@@ -1,13 +1,16 @@
 
 import { 
-  SpaceTimeDB,
-  TableName,
-  ReducerEvent,
-  ClientMessage
+  Client,
+  Identity,
+  TableSchema,
+  Event,
+  ReducerEvent as BaseReducerEvent
 } from '@clockworklabs/spacetimedb-sdk';
 
+type ReducerEvent = BaseReducerEvent<any>;
+
 class SpaceTimeDBService {
-  private db: SpaceTimeDB | null = null;
+  private db: Client | null = null;
   private isConnected: boolean = false;
   private projectsCallbacks: Array<(projects: any[]) => void> = [];
   
@@ -18,7 +21,7 @@ class SpaceTimeDBService {
   private init() {
     try {
       // Initialize SpaceTimeDB client
-      this.db = new SpaceTimeDB();
+      this.db = new Client();
       
       // Configure connection settings
       this.db.on('connected', () => {
@@ -33,7 +36,7 @@ class SpaceTimeDBService {
       });
       
       // Setup table subscriptions when available
-      this.db.on('subscription_applied', (tableName: TableName) => {
+      this.db.on('subscription_applied', (tableName: string) => {
         console.log(`Subscribed to table: ${tableName}`);
       });
       
