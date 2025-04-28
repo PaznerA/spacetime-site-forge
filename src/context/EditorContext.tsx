@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useSpaceTimeDB } from '@/lib/spacetime-db';
 
@@ -38,11 +37,9 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const spaceTimeDB = useSpaceTimeDB();
 
   useEffect(() => {
-    // Connect to SpaceTimeDB
-    spaceTimeDB.connect();
-    
     // Subscribe to projects updates
     const unsubscribe = spaceTimeDB.subscribeToProjects((fetchedProjects) => {
+      console.log('Received projects:', fetchedProjects);
       setProjects(fetchedProjects);
     });
     
