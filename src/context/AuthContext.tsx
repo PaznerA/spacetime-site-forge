@@ -1,10 +1,10 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import * as SpaceTimeDB from '@clockworklabs/spacetimedb-sdk';
 import { User } from '@/autogen/user_type';
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from 'react-router-dom';
 import { DbConnection } from '@/autogen';
+import { connectToSpaceTimeDB } from '@/lib/spacetime-db';
 
 // Define the authentication context state
 interface AuthContextType {
@@ -46,16 +46,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeConnection = async () => {
       try {
         // Create a connection to SpaceTimeDB
-        connection = await DbConnection.builder()
-          .withEndpoint('https://spacetimedb.com/spacetimedbmidwest')
-          .withAddress('editor')
-          .withClientId()
-          .withIdentity()
+        await connectToSpaceTimeDB();
+        connection = DbConnection.builder()
+          .address('editor')
+          .clientId()
+          .identity()
           .build();
 
-        // Subscribe to the User table to detect changes
+        // Subscribe to all tables to detect changes
         connection.subscriptionBuilder()
-          .subscribeToTable("User")
+          .subscribeToAllTables()
           .build();
 
         // Check for stored user session
@@ -89,7 +89,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       if (connection) {
-        connection.close();
+        // Simply nullify the connection since close() doesn't exist
+        connection = null;
       }
     };
   }, []);
