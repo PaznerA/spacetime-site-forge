@@ -1,3 +1,4 @@
+
 import * as SpaceTimeDB from '@clockworklabs/spacetimedb-sdk';
 import { DbConnection } from '@/autogen';
 
@@ -9,7 +10,7 @@ export const connectToSpaceTimeDB = async () => {
   try {
     if (!dbConnection) {
       // Use the correct API based on available methods
-      dbConnection = await DbConnection.builder()
+      dbConnection = DbConnection.builder()
         // Connect to the SpaceTimeDB endpoint
         .address('editor')
         .clientId()
