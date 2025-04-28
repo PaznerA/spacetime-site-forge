@@ -22,7 +22,8 @@ This is the C# backend for the Web Editor application using SpaceTimeDB.
 
 3. Create a SpaceTimeDB project:
    ```
-   spacetime project create web-editor-backend
+   spacetime init server --lang csharp
+   spacetime generate --lang typescript --out-dir ./src/autogen --project-path ./server
    ```
 
 4. Build and run the backend:

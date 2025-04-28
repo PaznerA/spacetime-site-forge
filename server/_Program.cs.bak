@@ -1,0 +1,357 @@
+using SpacetimeDB;
+using System;
+using System.Linq;
+
+public static partial class Module
+{
+    // Project entity to store project information
+    [SpacetimeDB.Table]
+    public partial struct Project
+    {
+        [SpacetimeDB.PrimaryKey]
+        public string Id;
+        
+        public string Name;
+        
+        public string Description;
+        
+        public long CreatedAt; // Unix timestamp in milliseconds
+        
+        public string Content; // JSON string representing the editor content
+        
+        public string OwnerId; // Reference to client who owns this project
+    }
+
+    // Component entity to store reusable components
+    [SpacetimeDB.Table]
+    public partial struct Component
+    {
+        [SpacetimeDB.PrimaryKey]
+        public string Id;
+        
+        public string Name;
+        
+        public string Description;
+        
+        public string Content; // Component definition as JSON
+        
+        public long CreatedAt; // Unix timestamp in milliseconds
+        
+        public bool IsPublic; // Whether this component can be used by all users
+        
+        public string OwnerId; // Creator of the component
+    }
+
+    // Client entity to store user/client information
+    [SpacetimeDB.Table]
+    public partial struct Client
+    {
+        [SpacetimeDB.PrimaryKey]
+        public string Id;
+        
+        public string Username;
+        
+        public string Email;
+        
+        public long CreatedAt; // Unix timestamp in milliseconds
+        
+        public long LastLogin; // Unix timestamp in milliseconds
+    }
+
+    // Settings entity to store user preferences and app settings
+    [SpacetimeDB.Table]
+    public partial struct Setting
+    {
+        [SpacetimeDB.PrimaryKey]
+        public string Id; // Usually userId_settingName format
+        
+        public string UserId;
+        
+        public string Key;
+        
+        public string Value; // JSON string for complex settings
+    }
+
+    // Helper function to get current timestamp
+    private static long GetCurrentTimestamp()
+    {
+        return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    }
+
+    // Project Reducers
+    [SpacetimeDB.Reducer]
+    public static void CreateProject(ReducerContext ctx, string name, string description, string ownerId, string? initialContent = null)
+    {
+        var projectId = Guid.NewGuid().ToString();
+        var now = GetCurrentTimestamp();
+        
+        var content = initialContent ?? "{\"nodes\":{},\"root\":{\"type\":\"div\",\"isCanvas\":true,\"props\":{\"className\":\"h-full w-full p-4\"},\"nodes\":[]}}";
+        
+        var project = new Project 
+        { 
+            Id = projectId,
+            Name = name,
+            Description = description,
+            CreatedAt = now,
+            Content = content,
+            OwnerId = ownerId,
+        };
+        
+        var inserted = ctx.Db.Project.Insert(project);
+        Log.Info($"Created project {inserted.Name} with ID {inserted.Id}");
+    }
+    
+    [SpacetimeDB.Reducer]
+    public static void UpdateProject(ReducerContext ctx, string id, string name, string description, string content)
+    {
+        var projectOpt = ctx.Db.Project.Iter().FirstOrDefault(p => p.Id == id);
+        
+        if (projectOpt.Equals(default(Project)))
+        {
+            throw new Exception($"Project with ID {id} not found");
+        }
+        
+        // Create updated version
+        var updatedProject = new Project
+        {
+            Id = id,
+            Name = name,
+            Description = description,
+            Content = content,
+            CreatedAt = projectOpt.CreatedAt,
+            OwnerId = projectOpt.OwnerId,
+        };
+        
+        // Remove old version
+        foreach (var project in ctx.Db.Project.Iter().Where(p => p.Id == id))
+        {
+            ctx.Db.Project.Delete(project);
+        }
+        
+        // Insert updated version
+        var inserted = ctx.Db.Project.Insert(updatedProject);
+        Log.Info($"Updated project {inserted.Name} with ID {inserted.Id}");
+    }
+    
+    [SpacetimeDB.Reducer]
+    public static void DeleteProject(ReducerContext ctx, string id)
+    {
+        bool found = false;
+        
+        foreach (var project in ctx.Db.Project.Iter().Where(p => p.Id == id))
+        {
+            ctx.Db.Project.Delete(project);
+            found = true;
+        }
+        
+        if (!found)
+        {
+            throw new Exception($"Project with ID {id} not found");
+        }
+        
+        Log.Info($"Deleted project with ID {id}");
+    }
+    
+    // Component Reducers
+    [SpacetimeDB.Reducer]
+    public static void CreateComponent(ReducerContext ctx, string name, string description, string content, string ownerId, bool isPublic = false)
+    {
+        var componentId = Guid.NewGuid().ToString();
+        var now = GetCurrentTimestamp();
+        
+        var component = new Component
+        {
+            Id = componentId,
+            Name = name,
+            Description = description,
+            Content = content,
+            CreatedAt = now,
+            IsPublic = isPublic,
+            OwnerId = ownerId,
+        };
+        
+        var inserted = ctx.Db.Component.Insert(component);
+        Log.Info($"Created component {inserted.Name} with ID {inserted.Id}");
+    }
+    
+    [SpacetimeDB.Reducer]
+    public static void UpdateComponent(ReducerContext ctx, string id, string name, string description, string content, bool isPublic)
+    {
+        var componentOpt = ctx.Db.Component.Iter().FirstOrDefault(c => c.Id == id);
+        
+        if (componentOpt.Equals(default(Component)))
+        {
+            throw new Exception($"Component with ID {id} not found");
+        }
+        
+        // Create updated version
+        var updatedComponent = new Component
+        {
+            Id = id,
+            Name = name,
+            Description = description,
+            Content = content,
+            CreatedAt = componentOpt.CreatedAt,
+            IsPublic = isPublic,
+            OwnerId = componentOpt.OwnerId,
+        };
+        
+        // Remove old version
+        foreach (var component in ctx.Db.Component.Iter().Where(c => c.Id == id))
+        {
+            ctx.Db.Component.Delete(component);
+        }
+        
+        // Insert updated version
+        var inserted = ctx.Db.Component.Insert(updatedComponent);
+        Log.Info($"Updated component {inserted.Name} with ID {inserted.Id}");
+    }
+    
+    [SpacetimeDB.Reducer]
+    public static void DeleteComponent(ReducerContext ctx, string id)
+    {
+        bool found = false;
+        
+        foreach (var component in ctx.Db.Component.Iter().Where(c => c.Id == id))
+        {
+            ctx.Db.Component.Delete(component);
+            found = true;
+        }
+        
+        if (!found)
+        {
+            throw new Exception($"Component with ID {id} not found");
+        }
+        
+        Log.Info($"Deleted component with ID {id}");
+    }
+    
+    // Client Reducers
+    [SpacetimeDB.Reducer]
+    public static void CreateClient(ReducerContext ctx, string username, string email)
+    {
+        var clientId = Guid.NewGuid().ToString();
+        var now = GetCurrentTimestamp();
+        
+        var client = new Client
+        {
+            Id = clientId,
+            Username = username,
+            Email = email,
+            CreatedAt = now,
+            LastLogin = now,
+        };
+        
+        var inserted = ctx.Db.Client.Insert(client);
+        Log.Info($"Created client {inserted.Username} with ID {inserted.Id}");
+    }
+    
+    [SpacetimeDB.Reducer]
+    public static void UpdateClient(ReducerContext ctx, string id, string username, string email)
+    {
+        var clientOpt = ctx.Db.Client.Iter().FirstOrDefault(c => c.Id == id);
+        
+        if (clientOpt.Equals(default(Client)))
+        {
+            throw new Exception($"Client with ID {id} not found");
+        }
+        
+        // Create updated version
+        var updatedClient = new Client
+        {
+            Id = id,
+            Username = username,
+            Email = email,
+            CreatedAt = clientOpt.CreatedAt,
+            LastLogin = clientOpt.LastLogin,
+        };
+        
+        // Remove old version
+        foreach (var client in ctx.Db.Client.Iter().Where(c => c.Id == id))
+        {
+            ctx.Db.Client.Delete(client);
+        }
+        
+        // Insert updated version
+        var inserted = ctx.Db.Client.Insert(updatedClient);
+        Log.Info($"Updated client {inserted.Username} with ID {inserted.Id}");
+    }
+    
+    [SpacetimeDB.Reducer]
+    public static void UpdateLastLogin(ReducerContext ctx, string id)
+    {
+        var clientOpt = ctx.Db.Client.Iter().FirstOrDefault(c => c.Id == id);
+        
+        if (clientOpt.Equals(default(Client)))
+        {
+            throw new Exception($"Client with ID {id} not found");
+        }
+        
+        // Create updated version with new LastLogin
+        var updatedClient = new Client
+        {
+            Id = id,
+            Username = clientOpt.Username,
+            Email = clientOpt.Email,
+            CreatedAt = clientOpt.CreatedAt,
+            LastLogin = GetCurrentTimestamp(),
+        };
+        
+        // Remove old version
+        foreach (var client in ctx.Db.Client.Iter().Where(c => c.Id == id))
+        {
+            ctx.Db.Client.Delete(client);
+        }
+        
+        // Insert updated version
+        var inserted = ctx.Db.Client.Insert(updatedClient);
+        Log.Info($"Updated last login for client with ID {inserted.Id}");
+    }
+    
+    // Settings Reducers
+    [SpacetimeDB.Reducer]
+    public static void SetSetting(ReducerContext ctx, string userId, string key, string value)
+    {
+        var id = $"{userId}_{key}";
+        var existingSettingOpt = ctx.Db.Setting.Iter().FirstOrDefault(s => s.Id == id);
+        
+        if (!existingSettingOpt.Equals(default(Setting)))
+        {
+            // Remove existing setting
+            foreach (var setting in ctx.Db.Setting.Iter().Where(s => s.Id == id))
+            {
+                ctx.Db.Setting.Delete(setting);
+            }
+        }
+        
+        // Create new or updated setting
+        var newSetting = new Setting
+        {
+            Id = id,
+            UserId = userId,
+            Key = key,
+            Value = value,
+        };
+        
+        var inserted = ctx.Db.Setting.Insert(newSetting);
+        Log.Info($"{(existingSettingOpt.Equals(default(Setting)) ? "Created" : "Updated")} setting {key} for user {userId}");
+    }
+    
+    [SpacetimeDB.Reducer]
+    public static void DeleteSetting(ReducerContext ctx, string userId, string key)
+    {
+        var id = $"{userId}_{key}";
+        bool found = false;
+        
+        foreach (var setting in ctx.Db.Setting.Iter().Where(s => s.Id == id))
+        {
+            ctx.Db.Setting.Delete(setting);
+            found = true;
+        }
+        
+        if (found)
+        {
+            Log.Info($"Deleted setting {key} for user {userId}");
+        }
+    }
+}
