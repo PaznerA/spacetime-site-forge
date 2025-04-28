@@ -1,59 +1,22 @@
-
-// Import SDK correctly based on the available exports
 import * as SpaceTimeDB from '@clockworklabs/spacetimedb-sdk';
+import { DbConnection } from '@/autogen';
 
-// Create a mock client that will be replaced by the real one when backend is ready
-const createMockClient = () => {
-  return {
-    connect: async () => {
-      console.log('Mock client connected');
-      return true;
-    },
-    disconnect: () => {
-      console.log('Mock client disconnected');
-    },
-    subscribeToProjects: (callback) => {
-      // Return some mock projects
-      setTimeout(() => {
-        callback([
-          {
-            id: '1',
-            name: 'Sample Project',
-            description: 'A sample project to demonstrate the editor',
-            createdAt: new Date().toISOString(),
-            content: {
-              nodes: {},
-              root: {
-                type: 'div',
-                isCanvas: true,
-                props: { className: 'h-full w-full p-4' },
-                nodes: [],
-              }
-            }
-          }
-        ]);
-      }, 500);
-      
-      // Return unsubscribe function
-      return () => {
-        console.log('Unsubscribed from projects');
-      };
-    },
-    saveProject: async (project) => {
-      console.log('Mock saving project:', project);
-      return { success: true };
-    }
-  };
-};
+// Keep track of the connection
+let dbConnection: DbConnection | null = null;
 
-// Export the client
-export const spaceTimeDBClient = createMockClient();
-
-// Connect function
+// Export the client for reuse
 export const connectToSpaceTimeDB = async () => {
   try {
-    await spaceTimeDBClient.connect();
-    console.log('Connected to SpaceTimeDB');
+    if (!dbConnection) {
+      dbConnection = await DbConnection.builder()
+        .withEndpoint('https://spacetimedb.com/spacetimedbmidwest')
+        .withAddress('editor')
+        .withClientId()
+        .withIdentity()
+        .build();
+      
+      console.log('Connected to SpaceTimeDB');
+    }
     return true;
   } catch (error) {
     console.error('Failed to connect to SpaceTimeDB:', error);
@@ -72,7 +35,7 @@ export const useSpaceTimeDB = () => {
     
     const connect = async () => {
       try {
-        await spaceTimeDBClient.connect();
+        await connectToSpaceTimeDB();
         if (mounted) {
           setIsConnected(true);
         }
@@ -92,10 +55,15 @@ export const useSpaceTimeDB = () => {
     isConnected,
     connect: connectToSpaceTimeDB,
     disconnect: () => {
-      spaceTimeDBClient.disconnect();
+      if (dbConnection) {
+        dbConnection.close();
+        dbConnection = null;
+      }
       setIsConnected(false);
     },
-    subscribeToProjects: spaceTimeDBClient.subscribeToProjects,
-    saveProject: spaceTimeDBClient.saveProject
+    getConnection: () => dbConnection
   };
 };
+
+// Export the connection for direct access
+export const getConnection = () => dbConnection;
