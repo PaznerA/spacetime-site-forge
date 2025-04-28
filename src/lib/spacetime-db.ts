@@ -1,8 +1,5 @@
 
-import { 
-  SpaceTimeDB,
-  ReducerEvent
-} from '@clockworklabs/spacetimedb-sdk';
+import * as SpaceTimeDB from '@clockworklabs/spacetimedb-sdk';
 
 interface Project {
   id: string;
@@ -13,7 +10,7 @@ interface Project {
 }
 
 class SpaceTimeDBService {
-  private db: SpaceTimeDB | null = null;
+  private db: SpaceTimeDB.SpaceTimeDBClient | null = null;
   private isConnected: boolean = false;
   private projectsCallbacks: Array<(projects: Project[]) => void> = [];
   
@@ -24,7 +21,7 @@ class SpaceTimeDBService {
   private init() {
     try {
       // Initialize SpaceTimeDB client
-      this.db = new SpaceTimeDB();
+      this.db = new SpaceTimeDB.SpaceTimeDBClient();
       
       // Configure connection settings
       this.db.on('connected', () => {
@@ -44,7 +41,7 @@ class SpaceTimeDBService {
       });
       
       // Handle project updates
-      this.db.on('reducer_event', (event: ReducerEvent) => {
+      this.db.on('reducer_event', (event: SpaceTimeDB.ReducerEvent<any>) => {
         if (event.reducerName === 'projects') {
           this.fetchProjects();
         }
