@@ -1,18 +1,21 @@
 
 import { 
-  Client,
-  Identity,
-  TableSchema,
-  Event,
-  ReducerEvent as BaseReducerEvent
+  SpaceTimeDB,
+  ReducerEvent
 } from '@clockworklabs/spacetimedb-sdk';
 
-type ReducerEvent = BaseReducerEvent<any>;
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  content?: any;
+}
 
 class SpaceTimeDBService {
-  private db: Client | null = null;
+  private db: SpaceTimeDB | null = null;
   private isConnected: boolean = false;
-  private projectsCallbacks: Array<(projects: any[]) => void> = [];
+  private projectsCallbacks: Array<(projects: Project[]) => void> = [];
   
   constructor() {
     this.init();
@@ -21,7 +24,7 @@ class SpaceTimeDBService {
   private init() {
     try {
       // Initialize SpaceTimeDB client
-      this.db = new Client();
+      this.db = new SpaceTimeDB();
       
       // Configure connection settings
       this.db.on('connected', () => {
@@ -42,7 +45,7 @@ class SpaceTimeDBService {
       
       // Handle project updates
       this.db.on('reducer_event', (event: ReducerEvent) => {
-        if (event.tableName === 'projects') {
+        if (event.reducerName === 'projects') {
           this.fetchProjects();
         }
       });
@@ -70,7 +73,7 @@ class SpaceTimeDBService {
     }
   }
   
-  public subscribeToProjects(callback: (projects: any[]) => void) {
+  public subscribeToProjects(callback: (projects: Project[]) => void) {
     this.projectsCallbacks.push(callback);
     if (this.isConnected) {
       this.fetchProjects();
@@ -84,7 +87,7 @@ class SpaceTimeDBService {
   private fetchProjects() {
     // In a real implementation, this would query the projects table
     // For demo purposes, we're returning mock data
-    const mockProjects = [
+    const mockProjects: Project[] = [
       { id: '1', name: 'Landing Page', description: 'Company landing page', createdAt: new Date().toISOString() },
       { id: '2', name: 'Blog', description: 'Personal blog template', createdAt: new Date().toISOString() },
       { id: '3', name: 'E-commerce', description: 'Online store template', createdAt: new Date().toISOString() }
@@ -93,7 +96,7 @@ class SpaceTimeDBService {
     this.projectsCallbacks.forEach(callback => callback(mockProjects));
   }
   
-  public async saveProject(project: any) {
+  public async saveProject(project: Project) {
     if (!this.db || !this.isConnected) {
       console.error('Not connected to SpaceTimeDB');
       return;
