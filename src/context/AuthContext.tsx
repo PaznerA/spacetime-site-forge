@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .build();
 
         // Subscribe to all tables to detect changes
-        connection.subscriptionBuilder()
+        const subscription = connection.subscriptionBuilder()
           .subscribeToAllTables()
           .build();
 
