@@ -28,7 +28,16 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Build
+      - name: Install SpaceTimeDB CLI
+        run: curl -fsSL https://spacetimedb.com/install.sh | bash
+      - name: Build server
+        run: |
+          cd server
+          dotnet build
+      - name: Generate TypeScript bindings
+        run: |
+          spacetime generate --lang typescript --out-dir ./src/autogen --project-path ./server
+      - name: Build frontend
         run: npm run build
       - name: Setup Pages
         uses: actions/configure-pages@v4
