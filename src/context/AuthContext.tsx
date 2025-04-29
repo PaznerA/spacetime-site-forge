@@ -1,10 +1,10 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User } from '@/autogen/user_type';
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from 'react-router-dom';
 import { DbConnection } from '@/autogen';
-import { connectToSpaceTimeDB } from '@/lib/spacetime-db';
+import { connectToSpaceTimeDB, getConnection } from '@/lib/spacetime-db';
+import * as SpaceTimeDB from '@clockworklabs/spacetimedb-sdk';
 
 // Define the authentication context state
 interface AuthContextType {
@@ -30,9 +30,6 @@ const AuthContext = createContext<AuthContextType>({
   deactivateAccount: async () => false,
 });
 
-// Connection to SpaceTimeDB
-let connection: DbConnection | null = null;
-
 // Custom hook to use the auth context
 export const useAuth = () => useContext(AuthContext);
 
@@ -47,33 +44,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         // Create a connection to SpaceTimeDB
         await connectToSpaceTimeDB();
-        connection = DbConnection.builder()
-          .address('editor')
-          .clientId()
-          .identity()
-          .build();
-
-        // Subscribe to all tables to detect changes
-        const subscription = connection.subscriptionBuilder()
-          .subscribeToAllTables()
-          .build();
-
-        // Check for stored user session
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-
-        setIsLoading(false);
+        const connection = getConnection();
         
-        // Listen for auth state changes (user updates)
-        connection.db.user.onUpdate((ctx, oldUserData, newUserData) => {
-          if (user && user.id === newUserData.id) {
-            setUser(newUserData);
-            localStorage.setItem('user', JSON.stringify(newUserData));
+        if (connection) {
+          // Subscribe to all tables to detect changes
+          connection.subscribeToAllTables();
+          
+          // Check for stored user session
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            setUser(JSON.parse(storedUser));
           }
-        });
-
+          
+          setIsLoading(false);
+          
+          // Listen for auth state changes (user updates)
+          connection.db.user.onUpdate((ctx, oldUserData, newUserData) => {
+            if (user && user.id === newUserData.id) {
+              setUser(newUserData);
+              localStorage.setItem('user', JSON.stringify(newUserData));
+            }
+          });
+        }
       } catch (error) {
         console.error('Failed to connect to SpaceTimeDB:', error);
         setIsLoading(false);
@@ -88,15 +80,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeConnection();
 
     return () => {
-      if (connection) {
-        // Simply nullify the connection since close() doesn't exist
-        connection = null;
-      }
+      // Simply nullify the connection as close() doesn't exist
     };
   }, []);
 
   // Login function
   const login = async (usernameOrEmail: string, password: string): Promise<boolean> => {
+    const connection = getConnection();
     if (!connection) {
       toast({
         title: "Connection Error",
@@ -121,12 +111,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
           resolve(true);
           // Remove the event listener after successful login
-          connection?.db.user.removeOnInsert(onLoginSuccess);
+          connection.db.user.removeOnInsert(onLoginSuccess);
         };
 
         // Set a timeout to handle failed login
         const timeout = setTimeout(() => {
-          connection?.db.user.removeOnInsert(onLoginSuccess);
+          connection.db.user.removeOnInsert(onLoginSuccess);
           toast({
             title: "Login Failed",
             description: "Invalid username/email or password.",
@@ -136,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }, 5000);
 
         // Listen for user data
-        connection?.db.user.onInsert(onLoginSuccess);
+        connection.db.user.onInsert(onLoginSuccess);
       });
     } catch (error) {
       console.error('Login error:', error);

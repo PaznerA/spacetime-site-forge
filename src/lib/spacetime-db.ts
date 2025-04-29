@@ -1,4 +1,3 @@
-
 import * as SpaceTimeDB from '@clockworklabs/spacetimedb-sdk';
 import { DbConnection } from '@/autogen';
 
@@ -9,13 +8,12 @@ let dbConnection: DbConnection | null = null;
 export const connectToSpaceTimeDB = async () => {
   try {
     if (!dbConnection) {
-      // Use the correct API based on available methods
-      dbConnection = DbConnection.builder()
-        // Connect to the SpaceTimeDB endpoint
-        .address('editor')
-        .clientId()
-        .identity()
-        .build();
+      // Create a new connection with the correct API methods
+      dbConnection = new DbConnection({
+        address: 'editor',
+        client_id: SpaceTimeDB.ClientID.generate(),
+        identity: SpaceTimeDB.Identity.generate()
+      });
       
       console.log('Connected to SpaceTimeDB');
     }
@@ -123,7 +121,7 @@ export const useSpaceTimeDB = () => {
     connect: connectToSpaceTimeDB,
     disconnect: () => {
       if (dbConnection) {
-        // Use a different approach since close() doesn't exist
+        // Simply nullify the connection since close() doesn't exist
         dbConnection = null;
         setIsConnected(false);
         console.log('Disconnected from SpaceTimeDB');

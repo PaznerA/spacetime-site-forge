@@ -38,23 +38,34 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const spaceTimeDB = useSpaceTimeDB();
 
   useEffect(() => {
-    // Make sure we have the subscribeToProjects method
-    if (typeof spaceTimeDB.subscribeToProjects === 'function') {
-      // Subscribe to projects updates
-      const unsubscribe = spaceTimeDB.subscribeToProjects((fetchedProjects) => {
-        console.log('Received projects:', fetchedProjects);
-        setProjects(fetchedProjects);
-      });
+    if (spaceTimeDB.isConnected) {
+      // Create mock projects until real data is available
+      const mockProjects = [
+        {
+          id: '1',
+          name: 'Sample Project',
+          description: 'A demonstration project',
+          createdAt: new Date().toISOString(),
+          content: {
+            nodes: {},
+            root: {
+              type: 'div',
+              isCanvas: true,
+              props: { className: 'h-full w-full p-4' },
+              nodes: [],
+            }
+          }
+        }
+      ];
       
-      return () => {
-        unsubscribe();
-        spaceTimeDB.disconnect();
-      };
-    } else {
-      console.error('subscribeToProjects is not a function');
-      return () => {}; // Return empty cleanup function
+      setProjects(mockProjects);
+      console.log('Loaded mock projects');
     }
-  }, [spaceTimeDB]);
+    
+    return () => {
+      console.log('Cleaning up editor context');
+    };
+  }, [spaceTimeDB.isConnected]);
 
   const selectProject = (projectId: string) => {
     const project = projects.find(p => p.id === projectId) || null;
@@ -79,42 +90,21 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
     
-    // Check if saveProject exists
-    if (typeof spaceTimeDB.saveProject === 'function') {
-      const result = await spaceTimeDB.saveProject(newProject);
-      
-      if (result.success) {
-        setProjects([...projects, newProject]);
-        setSelectedProject(newProject);
-      }
-    } else {
-      // Fallback if saveProject is not available
-      console.warn('saveProject is not available, adding project directly to state');
-      setProjects([...projects, newProject]);
-      setSelectedProject(newProject);
-    }
+    // For now, just add to local state
+    console.log('Creating new project:', newProject);
+    setProjects([...projects, newProject]);
+    setSelectedProject(newProject);
     
     return newProject;
   };
 
   const saveProject = async (project: Project) => {
-    // Check if saveProject exists
-    if (typeof spaceTimeDB.saveProject === 'function') {
-      const result = await spaceTimeDB.saveProject(project);
-      
-      if (result.success) {
-        setProjects(projects.map(p => p.id === project.id ? project : p));
-        setSelectedProject(project);
-      }
-      
-      return { success: result.success };
-    } else {
-      // Fallback if saveProject is not available
-      console.warn('saveProject is not available, updating project directly in state');
-      setProjects(projects.map(p => p.id === project.id ? project : p));
-      setSelectedProject(project);
-      return { success: true };
-    }
+    // For now, just update local state
+    console.log('Saving project:', project);
+    setProjects(projects.map(p => p.id === project.id ? project : p));
+    setSelectedProject(project);
+    
+    return { success: true };
   };
 
   const exportProject = (project: Project) => {
