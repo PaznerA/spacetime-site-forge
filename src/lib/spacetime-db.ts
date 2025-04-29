@@ -1,5 +1,6 @@
 import * as SpaceTimeDB from '@clockworklabs/spacetimedb-sdk';
 import { DbConnection } from '@/autogen';
+import { useState, useEffect } from 'react';
 
 // Keep track of the connection
 let dbConnection: DbConnection | null = null;
@@ -10,9 +11,9 @@ export const connectToSpaceTimeDB = async () => {
     if (!dbConnection) {
       // Create a new connection with the correct API methods
       dbConnection = new DbConnection({
-        address: 'editor',
-        client_id: SpaceTimeDB.ClientID.generate(),
-        identity: SpaceTimeDB.Identity.generate()
+        uri: 'editor',
+        clientId: SpaceTimeDB.generateClientId(),
+        identity: SpaceTimeDB.generateIdentity()
       });
       
       console.log('Connected to SpaceTimeDB');
@@ -34,8 +35,6 @@ interface Project {
 }
 
 // Create a custom hook for easier use in components
-import { useState, useEffect } from 'react';
-
 export const useSpaceTimeDB = () => {
   const [isConnected, setIsConnected] = useState(false);
   

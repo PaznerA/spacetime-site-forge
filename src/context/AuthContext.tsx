@@ -1,10 +1,9 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User } from '@/autogen/user_type';
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from 'react-router-dom';
-import { DbConnection } from '@/autogen';
 import { connectToSpaceTimeDB, getConnection } from '@/lib/spacetime-db';
-import * as SpaceTimeDB from '@clockworklabs/spacetimedb-sdk';
 
 // Define the authentication context state
 interface AuthContextType {
@@ -44,12 +43,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         // Create a connection to SpaceTimeDB
         await connectToSpaceTimeDB();
-        const connection = getConnection();
+        const dbConnection = getConnection();
         
-        if (connection) {
-          // Subscribe to all tables to detect changes
-          connection.subscribeToAllTables();
-          
+        if (dbConnection) {
           // Check for stored user session
           const storedUser = localStorage.getItem('user');
           if (storedUser) {
@@ -59,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsLoading(false);
           
           // Listen for auth state changes (user updates)
-          connection.db.user.onUpdate((ctx, oldUserData, newUserData) => {
+          dbConnection.db.user.onUpdate((ctx, oldUserData, newUserData) => {
             if (user && user.id === newUserData.id) {
               setUser(newUserData);
               localStorage.setItem('user', JSON.stringify(newUserData));
@@ -86,8 +82,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Login function
   const login = async (usernameOrEmail: string, password: string): Promise<boolean> => {
-    const connection = getConnection();
-    if (!connection) {
+    const dbConnection = getConnection();
+    if (!dbConnection) {
       toast({
         title: "Connection Error",
         description: "Not connected to the server.",
@@ -98,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       // Call the LoginUser reducer
-      connection.reducers.loginUser(usernameOrEmail, password);
+      dbConnection.reducers.loginUser(usernameOrEmail, password);
       
       // Set up a promise that resolves when login is successful
       return new Promise((resolve) => {
@@ -111,12 +107,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
           resolve(true);
           // Remove the event listener after successful login
-          connection.db.user.removeOnInsert(onLoginSuccess);
+          dbConnection.db.user.removeOnInsert(onLoginSuccess);
         };
 
         // Set a timeout to handle failed login
         const timeout = setTimeout(() => {
-          connection.db.user.removeOnInsert(onLoginSuccess);
+          dbConnection.db.user.removeOnInsert(onLoginSuccess);
           toast({
             title: "Login Failed",
             description: "Invalid username/email or password.",
@@ -126,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }, 5000);
 
         // Listen for user data
-        connection.db.user.onInsert(onLoginSuccess);
+        dbConnection.db.user.onInsert(onLoginSuccess);
       });
     } catch (error) {
       console.error('Login error:', error);
@@ -141,7 +137,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Register function
   const register = async (username: string, email: string, password: string): Promise<boolean> => {
-    if (!connection) {
+    const dbConnection = getConnection();
+    if (!dbConnection) {
       toast({
         title: "Connection Error",
         description: "Not connected to the server.",
@@ -152,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       // Call the RegisterUser reducer
-      connection.reducers.registerUser(username, email, password);
+      dbConnection.reducers.registerUser(username, email, password);
       
       // Set up a promise that resolves when registration is successful
       return new Promise((resolve) => {
@@ -165,12 +162,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
           resolve(true);
           // Remove the event listener after successful registration
-          connection?.db.user.removeOnInsert(onRegisterSuccess);
+          dbConnection.db.user.removeOnInsert(onRegisterSuccess);
         };
 
         // Set a timeout to handle failed registration
         const timeout = setTimeout(() => {
-          connection?.db.user.removeOnInsert(onRegisterSuccess);
+          dbConnection.db.user.removeOnInsert(onRegisterSuccess);
           toast({
             title: "Registration Failed",
             description: "Username or email may already be in use.",
@@ -180,7 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }, 5000);
 
         // Listen for user data
-        connection?.db.user.onInsert(onRegisterSuccess);
+        dbConnection.db.user.onInsert(onRegisterSuccess);
       });
     } catch (error) {
       console.error('Registration error:', error);
@@ -206,7 +203,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Change password function
   const changePassword = async (userId: string, currentPassword: string, newPassword: string): Promise<boolean> => {
-    if (!connection) {
+    const dbConnection = getConnection();
+    if (!dbConnection) {
       toast({
         title: "Connection Error",
         description: "Not connected to the server.",
@@ -217,24 +215,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       // Call the ChangePassword reducer
-      connection.reducers.changePassword(userId, currentPassword, newPassword);
+      dbConnection.reducers.changePassword(userId, currentPassword, newPassword);
       
       // Set up a promise that resolves when password change is successful
       return new Promise((resolve) => {
         // Listen for user data update
-        const onPasswordChanged = (ctx: any, updatedUser: User) => {
+        const onPasswordChanged = (ctx: any, oldData: User, updatedUser: User) => {
           if (user && user.id === updatedUser.id) {
             toast({
               title: "Password Changed",
               description: "Your password has been successfully updated.",
             });
             resolve(true);
+            dbConnection.db.user.removeOnUpdate(onPasswordChanged);
           }
         };
 
         // Set a timeout to handle failed password change
         const timeout = setTimeout(() => {
-          connection?.db.user.removeOnUpdate(onPasswordChanged);
+          dbConnection.db.user.removeOnUpdate(onPasswordChanged);
           toast({
             title: "Password Change Failed",
             description: "Current password may be incorrect.",
@@ -243,7 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           resolve(false);
         }, 5000);
 
-        connection?.db.user.onUpdate(onPasswordChanged);
+        dbConnection.db.user.onUpdate(onPasswordChanged);
       });
     } catch (error) {
       console.error('Change password error:', error);
@@ -258,7 +257,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Deactivate account function
   const deactivateAccount = async (userId: string): Promise<boolean> => {
-    if (!connection) {
+    const dbConnection = getConnection();
+    if (!dbConnection) {
       toast({
         title: "Connection Error",
         description: "Not connected to the server.",
@@ -269,7 +269,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       // Call the DeactivateUser reducer
-      connection.reducers.deactivateUser(userId);
+      dbConnection.reducers.deactivateUser(userId);
       
       // Set up a promise that resolves when account deactivation is successful
       return new Promise((resolve) => {
@@ -284,12 +284,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
             navigate('/');
             resolve(true);
+            dbConnection.db.user.removeOnUpdate(onAccountDeactivated);
           }
         };
 
         // Set a timeout to handle failed deactivation
         const timeout = setTimeout(() => {
-          connection?.db.user.removeOnUpdate(onAccountDeactivated);
+          dbConnection.db.user.removeOnUpdate(onAccountDeactivated);
           toast({
             title: "Account Deactivation Failed",
             description: "An error occurred while deactivating your account.",
@@ -298,7 +299,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           resolve(false);
         }, 5000);
 
-        connection?.db.user.onUpdate(onAccountDeactivated);
+        dbConnection.db.user.onUpdate(onAccountDeactivated);
       });
     } catch (error) {
       console.error('Deactivate account error:', error);
