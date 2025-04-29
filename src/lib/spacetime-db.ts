@@ -13,10 +13,10 @@ export const connectToSpaceTimeDB = async () => {
       // Create a new connection to the cloud SpaceTimeDB instance
       const address = import.meta.env.VITE_SPACETIME_ADDRESS || 'wss://site-forge.spacetimedb.net';
       
-      // Create proper connection config using nameOrAddress
+      // Create connection with the address
       dbConnection = new DbConnection({
-        nameOrAddress: address,
-        identity: SpaceTimeDB.createIdentity() // Use createIdentity instead of Identity.generate
+        uri: new URL(address),
+        identity: SpaceTimeDB.Identity.generate()
       });
       
       console.log('Connected to SpaceTimeDB Cloud at:', address);
