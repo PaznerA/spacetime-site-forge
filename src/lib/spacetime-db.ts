@@ -1,3 +1,4 @@
+
 import * as SpaceTimeDB from '@clockworklabs/spacetimedb-sdk';
 import { DbConnection } from '@/autogen';
 import { useState, useEffect } from 'react';
@@ -11,9 +12,9 @@ export const connectToSpaceTimeDB = async () => {
     if (!dbConnection) {
       // Create a new connection with the correct API methods
       dbConnection = new DbConnection({
-        uri: 'editor',
-        clientId: SpaceTimeDB.generateClientId(),
-        identity: SpaceTimeDB.generateIdentity()
+        uri: new URL('editor', window.location.origin),
+        clientId: crypto.randomUUID(), // Use UUID instead of the non-existent generateClientId
+        identity: SpaceTimeDB.Identity.generate() // Correct way to generate identity
       });
       
       console.log('Connected to SpaceTimeDB');
