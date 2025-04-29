@@ -1,3 +1,4 @@
+
 import * as SpaceTimeDB from '@clockworklabs/spacetimedb-sdk';
 import { DbConnection } from '@/autogen';
 import { useState, useEffect } from 'react';
@@ -9,13 +10,16 @@ let dbConnection: DbConnection | null = null;
 export const connectToSpaceTimeDB = async () => {
   try {
     if (!dbConnection) {
-      // Create a new connection with the correct API methods
+      // Create a new connection to the cloud SpaceTimeDB instance
+      const address = import.meta.env.VITE_SPACETIME_ADDRESS || 'wss://site-forge.spacetimedb.net';
+      
+      // Create proper connection config using nameOrAddress
       dbConnection = new DbConnection({
-        uri: new URL('editor', window.location.origin),
-        identity: SpaceTimeDB.Identity.generate() // Correct way to generate identity
+        nameOrAddress: address,
+        identity: SpaceTimeDB.createIdentity() // Use createIdentity instead of Identity.generate
       });
       
-      console.log('Connected to SpaceTimeDB');
+      console.log('Connected to SpaceTimeDB Cloud at:', address);
     }
     return true;
   } catch (error) {

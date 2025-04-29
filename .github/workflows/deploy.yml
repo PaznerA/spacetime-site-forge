@@ -34,11 +34,17 @@ jobs:
         run: |
           cd server
           dotnet build
+      - name: Deploy to SpaceTimeDB Cloud
+        run: |
+          spacetime login --token ${{ secrets.SPACETIME_TOKEN }}
+          spacetime publish site-forge --project-path ./server
       - name: Generate TypeScript bindings
         run: |
           spacetime generate --lang typescript --out-dir ./src/autogen --project-path ./server
-      - name: Build frontend
-        run: npm run build
+      - name: Build frontend with cloud configuration
+        run: |
+          echo "VITE_SPACETIME_ADDRESS=wss://site-forge.spacetimedb.net" > .env
+          npm run build
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact
